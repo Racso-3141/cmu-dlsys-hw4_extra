@@ -326,7 +326,21 @@ class Transformer(Module):
         self.batch_first = batch_first
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.embedding_size = embedding_size
+        self.sequence_len = sequence_len
+
+        # learnable positional embedding: position id (0..sequence_len-1) -> vector
+        self.pos_embedding = Embedding(
+            sequence_len, embedding_size, device=device, dtype=dtype)
+
+        # num_layers stacked decoder blocks; each keeps (B, T, embedding_size)
+        self.layers = Sequential(*[
+            TransformerLayer(
+                embedding_size, num_head, dim_head, hidden_size,
+                dropout=dropout, causal=causal,
+                device=device, dtype=dtype)
+            for _ in range(num_layers)
+        ])
         ### END YOUR SOLUTION
 
     def forward(
@@ -338,7 +352,12 @@ class Transformer(Module):
             x = ops.transpose(x, axes=(0, 1))
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        batch_size, seq_len, _ = x.shape
+        position_ids = Tensor(np.arange(seq_len).reshape(seq_len, 1), device=x.device, dtype=self.dtype, requires_grad=False)  # (T, 1)
+        pos = self.pos_embedding(position_ids)                                         # (T, 1, D)
+        pos = pos.broadcast_to((seq_len, batch_size, self.embedding_size))             # (T, B, D)
+        pos = ops.transpose(pos, axes=(0, 1))                                          # (B, T, D)
+        x = self.layers(x + pos)
         ### END YOUR SOLUTION
 
         if not self.batch_first:
