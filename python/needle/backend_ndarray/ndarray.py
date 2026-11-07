@@ -243,11 +243,23 @@ class NDArray:
             new_shape (tuple): new shape of the array
 
         Returns:
-            NDArray : reshaped array; this will point to thep
+            NDArray : reshaped array; this will point to the
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_shape = tuple(new_shape)
+        if new_shape.count(-1) > 1:
+            raise ValueError("Only one dimension can be inferred")
+        if -1 in new_shape:
+            known = prod([d for d in new_shape if d != -1])
+            if known == 0 or self.size % known != 0:
+                raise ValueError("Incompatible shapes")
+            new_shape = tuple(self.size // known if d == -1 else d for d in new_shape)
+        if prod(new_shape) != prod(self.shape):
+            raise ValueError("Incompatible shapes")
+        if not self.is_compact():
+            raise ValueError("Array is not compact")
+        return NDArray.make(new_shape, device=self.device, handle=self._handle, offset=self._offset)
         ### END YOUR SOLUTION
 
     def permute(self, new_axes):
@@ -272,7 +284,13 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return NDArray.make(
+            shape=tuple(self.shape[i] for i in new_axes),
+            strides=tuple(self.strides[i] for i in new_axes),
+            device=self.device,
+            handle=self._handle,
+            offset=self._offset
+        )
         ### END YOUR SOLUTION
 
     def broadcast_to(self, new_shape):
@@ -296,7 +314,15 @@ class NDArray:
         """
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if len(new_shape) != len(self.shape) or any(ns != s and s != 1 for ns, s in zip(new_shape, self.shape)):
+            raise ValueError("New shape is not compatible for broadcasting")
+        return NDArray.make(
+            shape=new_shape,
+            strides=tuple(0 if s == 1 else st for s, st in zip(self.shape, self.strides)),
+            device=self.device,
+            handle=self._handle,
+            offset=self._offset
+        )
         ### END YOUR SOLUTION
 
     ### Get and set elements
@@ -363,7 +389,16 @@ class NDArray:
         assert len(idxs) == self.ndim, "Need indexes equal to number of dimensions"
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_offset = self._offset
+        for i, s in enumerate(slices):
+            new_offset += self.strides[i] * s.start
+        return NDArray.make(
+            shape=tuple((s.stop - s.start + s.step - 1) // s.step for s in slices),
+            strides=tuple(self.strides[i] * s.step for i, s in enumerate(slices)),
+            device=self.device,
+            handle=self._handle,
+            offset=new_offset
+        )
         ### END YOUR SOLUTION
 
     def __setitem__(self, idxs, other):
@@ -573,7 +608,11 @@ class NDArray:
         Note: compact() before returning.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        new_offset = self._offset
+        for ax in axes:
+            new_offset += self.strides[ax] * (self.shape[ax] - 1)
+        new_strides = tuple(-self.strides[ax] if ax in axes else self.strides[ax] for ax in range(self.ndim))
+        return self.make(self.shape, strides=new_strides, device=self.device, handle=self._handle, offset=new_offset).compact()
         ### END YOUR SOLUTION
 
     def pad(self, axes):
@@ -583,7 +622,11 @@ class NDArray:
         axes = ( (0, 0), (1, 1), (0, 0)) pads the middle axis with a 0 on the left and right side.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        out_shape = tuple(lp + s + rp for s, (lp, rp) in zip(self.shape, axes))
+        out = full(out_shape, 0, device=self.device)
+        slices = tuple(slice(lp, lp + s) for s, (lp, _) in zip(self.shape, axes))
+        out[slices] = self
+        return out
         ### END YOUR SOLUTION
 
 def array(a, dtype="float32", device=None):

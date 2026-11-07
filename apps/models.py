@@ -11,12 +11,49 @@ class ResNet9(ndl.nn.Module):
     def __init__(self, device=None, dtype="float32"):
         super().__init__()
         ### BEGIN YOUR SOLUTION ###
-        raise NotImplementedError() ###
+        self.net = nn.Sequential(
+            nn.Conv(3, 16, 7, stride=4, device=device, dtype=dtype),
+            nn.BatchNorm2d(16, device=device, dtype=dtype),
+            nn.ReLU(),
+            nn.Conv(16, 32, 3, stride=2, device=device, dtype=dtype),
+            nn.BatchNorm2d(32, device=device, dtype=dtype),
+            nn.ReLU(),
+            nn.Residual(
+                nn.Sequential(
+                    nn.Conv(32, 32, 3, stride=1, device=device, dtype=dtype),
+                    nn.BatchNorm2d(32, device=device, dtype=dtype),
+                    nn.ReLU(),
+                    nn.Conv(32, 32, 3, stride=1, device=device, dtype=dtype),
+                    nn.BatchNorm2d(32, device=device, dtype=dtype),
+                    nn.ReLU(),
+                )
+            ),
+            nn.Conv(32, 64, 3, stride=2, device=device, dtype=dtype),
+            nn.BatchNorm2d(64, device=device, dtype=dtype),
+            nn.ReLU(),
+            nn.Conv(64, 128, 3, stride=2, device=device, dtype=dtype),
+            nn.BatchNorm2d(128, device=device, dtype=dtype),
+            nn.ReLU(),
+            nn.Residual(
+                nn.Sequential(
+                    nn.Conv(128, 128, 3, stride=1, device=device, dtype=dtype),
+                    nn.BatchNorm2d(128, device=device, dtype=dtype),
+                    nn.ReLU(),
+                    nn.Conv(128, 128, 3, stride=1, device=device, dtype=dtype),
+                    nn.BatchNorm2d(128, device=device, dtype=dtype),
+                    nn.ReLU(),
+                )
+            ),
+            nn.Flatten(),
+            nn.Linear(128, 128, device=device, dtype=dtype),
+            nn.ReLU(),
+            nn.Linear(128, 10, device=device, dtype=dtype),
+        )
         ### END YOUR SOLUTION
 
     def forward(self, x):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return self.net(x)
         ### END YOUR SOLUTION
 
 
@@ -35,7 +72,21 @@ class LanguageModel(nn.Module):
         """
         super(LanguageModel, self).__init__()
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.embedding_size = embedding_size
+        self.output_size = output_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.seq_model_type = seq_model
+        self.seq_len = seq_len
+
+        self.embedding = nn.Embedding(output_size, embedding_size, device=device, dtype=dtype)
+        if seq_model == 'rnn':
+            self.seq_model = nn.RNN(embedding_size, hidden_size, num_layers, device=device, dtype=dtype)
+        elif seq_model == 'lstm':
+            self.seq_model = nn.LSTM(embedding_size, hidden_size, num_layers, device=device, dtype=dtype)
+        else:
+            raise ValueError(f"Unknown seq_model: {seq_model}")
+        self.linear = nn.Linear(hidden_size, output_size, device=device, dtype=dtype)
         ### END YOUR SOLUTION
 
     def forward(self, x, h=None):
@@ -52,7 +103,12 @@ class LanguageModel(nn.Module):
             else h is tuple of (h0, c0), each of shape (num_layers, bs, hidden_size)
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        seq_len, bs = x.shape                  # actual window length, may be < self.seq_len
+        x = self.embedding(x)                  # (seq_len, bs, embedding_size)
+        output, h = self.seq_model(x, h)       # h is a tensor (RNN) or (h_n, c_n) tuple (LSTM)
+        output = output.reshape((seq_len * bs, self.hidden_size))
+        out = self.linear(output)              # (seq_len*bs, output_size)
+        return out, h
         ### END YOUR SOLUTION
 
 

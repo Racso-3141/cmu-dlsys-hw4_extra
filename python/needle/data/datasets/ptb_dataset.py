@@ -16,6 +16,7 @@ class Dictionary(object):
     def __init__(self):
         self.word2idx = {}
         self.idx2word = []
+        self.id = 0
 
     def add_word(self, word):
         """
@@ -25,7 +26,13 @@ class Dictionary(object):
         Returns the word's unique ID.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if word in self.word2idx:
+            return self.word2idx[word]
+        id = self.id
+        self.id += 1
+        self.word2idx[word] = id
+        self.idx2word.append(word)
+        return id
         ### END YOUR SOLUTION
 
     def __len__(self):
@@ -33,7 +40,7 @@ class Dictionary(object):
         Returns the number of unique words in the dictionary.
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return len(self.word2idx)
         ### END YOUR SOLUTION
 
 
@@ -60,7 +67,15 @@ class Corpus(object):
         ids: List of ids
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        ids = []
+        with open(path, "r") as f:
+            for i, line in enumerate(f):
+                if max_lines is not None and i >= max_lines:
+                    break
+                words = line.split() + ["<eos>"]
+                for word in words:
+                    ids.append(self.dictionary.add_word(word))
+        return ids
         ### END YOUR SOLUTION
 
 
@@ -81,7 +96,9 @@ def batchify(data, batch_size, device, dtype):
     Returns the data as a numpy array of shape (nbatch, batch_size).
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    nbatch = len(data) // batch_size
+    data = np.array(data[: nbatch * batch_size], dtype=dtype)
+    return data.reshape((batch_size, nbatch)).T
     ### END YOUR SOLUTION
 
 
@@ -105,5 +122,11 @@ def get_batch(batches, i, bptt, device=None, dtype=None):
     target - Tensor of shape (bptt*bs,) with cached data as NDArray
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    seq_len = min(bptt, len(batches) - 1 - i)
+    data = batches[i : i + seq_len]
+    target = batches[i + 1 : i + 1 + seq_len].flatten()
+    return (
+        Tensor(data, device=device, dtype=dtype),
+        Tensor(target, device=device, dtype=dtype),
+    )
     ### END YOUR SOLUTION
