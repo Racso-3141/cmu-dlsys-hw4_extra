@@ -109,7 +109,17 @@ class MultiHeadAttention(Module):
         probs = None
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        score = self.matmul(q, k) / np.sqrt(q_dim)
+        if self.causal:
+            mask = Tensor(
+                self.create_causal_mask(queries_len, keys_values_len, self.device),
+                device=self.device,
+                dtype=self.dtype,
+                requires_grad=False,
+            ).broadcast_to(score.shape)
+            score = score + mask
+        probs = self.dropout(self.softmax(score))
+        result = self.matmul(probs, ops.transpose(v, axes=(2, 3)))
         ### END YOUR SOLUTION
 
         return result, probs
