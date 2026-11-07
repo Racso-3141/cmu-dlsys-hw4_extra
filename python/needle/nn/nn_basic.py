@@ -216,11 +216,11 @@ class LayerNorm1d(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        mean = ops.summation(x, axes=(-1, )) / self.dim
+        mean = ops.summation(x, axes=(len(x.shape) - 1, )) / self.dim
         mean = mean.reshape((-1, 1)).broadcast_to(x.shape)
         diff = x - mean
         
-        var = ops.summation(diff ** 2, axes=(-1,)) / self.dim
+        var = ops.summation(diff ** 2, axes=(len(x.shape) - 1,)) / self.dim
         var = var + self.eps
         
         std = var ** 0.5
